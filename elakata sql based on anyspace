@@ -1,0 +1,817 @@
+SET ANSI_WARNINGS ON;
+SET ANSI_NULLS ON;
+
+/*!Based on the SQL schema you've shared, it seems you're ready to implement a multifaceted social platform with a wide range of features including user-generated content, social networking, live streaming, e-commerce for merchandise, and enhanced interaction through AI. This schema lays a solid foundation for a robust and interactive platform. Here are a few recommendations and considerations for refining your SQL file:
+I am not a top notch programmer but the sql looks got to me its updated anyspace sql */;
+
+
+
+
+CREATE TABLE photo_user_tags (
+    tag_id INT IDENTITY(1,1) PRIMARY KEY,
+    photo_id INT NOT NULL,
+    user_id INT NOT NULL,
+    FOREIGN KEY (photo_id) REFERENCES creator_photos(photo_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'photo_keyword_tags')
+BEGIN
+    CREATE TABLE photo_keyword_tags (
+        keyword_id INT IDENTITY(1,1) NOT NULL,
+        photo_id INT NOT NULL,
+        keyword VARCHAR(255) NOT NULL,
+        CONSTRAINT PK_photo_keyword_tags PRIMARY KEY (keyword_id),
+        FOREIGN KEY (photo_id) REFERENCES creator_photos(photo_id) ON DELETE CASCADE
+    );
+END
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'photo_shares')
+BEGIN
+    CREATE TABLE photo_shares (
+        share_id INT IDENTITY(1,1) NOT NULL,
+        photo_id INT NOT NULL,
+        shared_by_user_id INT NOT NULL,
+        shared_to_user_id INT,
+        share_date DATETIME NOT NULL,
+        CONSTRAINT PK_photo_shares PRIMARY KEY (share_id),
+        FOREIGN KEY (photo_id) REFERENCES creator_photos(photo_id) ON DELETE CASCADE,
+        FOREIGN KEY (shared_by_user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (shared_to_user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+END
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'blogcomments')
+BEGIN
+    CREATE TABLE blogcomments (
+        id INT IDENTITY(1,1) NOT NULL,
+        toid INT NOT NULL,
+        author_id INT NOT NULL,
+        text VARCHAR(500) NOT NULL,
+        created_at DATETIME NOT NULL,
+        updated_at DATETIME,
+        parent_id INT,
+        likes_count INT NOT NULL DEFAULT 0,
+        CONSTRAINT PK_blogcomments PRIMARY KEY (id),
+        FOREIGN KEY (toid) REFERENCES blogs(id) ON DELETE CASCADE,
+        FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (parent_id) REFERENCES blogcomments(id) ON DELETE CASCADE
+    );
+END
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'blog')
+BEGIN
+    CREATE TABLE blog (
+        blog_id INT IDENTITY(1,1) NOT NULL,
+        content VARCHAR(280) NOT NULL,
+        author_id INT NOT NULL,
+        post_date DATETIME NOT NULL,
+        hashtags VARCHAR(255) DEFAULT NULL,
+        privacy_level INT NOT NULL,
+        pinned BIT NOT NULL DEFAULT 0,
+        likes_count INT NOT NULL DEFAULT 0,
+        retweets_count INT NOT NULL DEFAULT 0,
+        CONSTRAINT PK_blog PRIMARY KEY (blog_id),
+        FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+END
+
+
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'bulletins')
+BEGIN
+    CREATE TABLE bulletins (
+        id INT IDENTITY(1,1) NOT NULL,
+        author_id INT NOT NULL,
+        text TEXT,
+        date DATETIME NOT NULL,
+        title VARCHAR(255),
+        image_url VARCHAR(255) DEFAULT NULL,
+        video_url VARCHAR(255) DEFAULT NULL,
+        likes_count INT NOT NULL DEFAULT 0,
+        comments_count INT NOT NULL DEFAULT 0,
+        shares_count INT NOT NULL DEFAULT 0,
+        CONSTRAINT PK_bulletins PRIMARY KEY (id),
+        FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+END
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'comments')
+BEGIN
+    CREATE TABLE comments (
+        id INT IDENTITY(1,1) NOT NULL,
+        toid INT NOT NULL,
+        author_id INT NOT NULL,
+        text VARCHAR(500) NOT NULL,
+        date DATETIME NOT NULL,
+        CONSTRAINT PK_comments PRIMARY KEY (id),
+        FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+END
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'comment_media')
+BEGIN
+    CREATE TABLE comment_media (
+        media_id INT IDENTITY(1,1) NOT NULL,
+        comment_id INT NOT NULL,
+        media_type VARCHAR(255) CHECK (media_type IN ('image', 'video', 'other')) NOT NULL,
+        media_url VARCHAR(255) NOT NULL,
+        CONSTRAINT PK_comment_media PRIMARY KEY (media_id),
+        FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE
+    );
+END
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'favorites')
+BEGIN
+    CREATE TABLE favorites (
+        user_id INT NOT NULL,
+        favorite_song_id INT,
+        favorite_video_id INT,
+        favorite_photo_id INT,
+        favorite_friend_user_id INT,
+        CONSTRAINT PK_favorites PRIMARY KEY (user_id),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (favorite_song_id) REFERENCES media(media_id) ON DELETE SET NULL,
+        FOREIGN KEY (favorite_video_id) REFERENCES media(media_id) ON DELETE SET NULL,
+        FOREIGN KEY (favorite_photo_id) REFERENCES media(media_id) ON DELETE SET NULL,
+        FOREIGN KEY (favorite_friend_user_id) REFERENCES users(id) ON DELETE SET NULL
+    );
+END
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'favorites')
+BEGIN
+    CREATE TABLE favorites (
+        user_id INT NOT NULL,
+        favorite_song_id INT,
+        favorite_video_id INT,
+        favorite_photo_id INT,
+        favorite_friend_user_id INT,
+        CONSTRAINT PK_favorites PRIMARY KEY (user_id),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (favorite_song_id) REFERENCES media(media_id) ON DELETE SET NULL,
+        FOREIGN KEY (favorite_video_id) REFERENCES media(media_id) ON DELETE SET NULL,
+        FOREIGN KEY (favorite_photo_id) REFERENCES media(media_id) ON DELETE SET NULL,
+        FOREIGN KEY (favorite_friend_user_id) REFERENCES users(id) ON DELETE SET NULL
+    );
+END
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'profile_comments')
+BEGIN
+    CREATE TABLE profile_comments (
+        comment_id INT IDENTITY(1,1) NOT NULL,
+        profile_id INT NOT NULL, -- UserID of the profile where the comment is posted
+        author_id INT NOT NULL, -- UserID of the friend posting the comment
+        text VARCHAR(500) NOT NULL, -- The comment text
+        comment_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT PK_profile_comments PRIMARY KEY (comment_id),
+        FOREIGN KEY (profile_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+END
+
+-- Pages Table: Store information about each page
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'pages')
+BEGIN
+    CREATE TABLE pages (
+        page_id INT IDENTITY(1,1) NOT NULL,
+        creator_id INT NOT NULL, -- The user who created the page
+        name VARCHAR(255) NOT NULL,
+        description VARCHAR(500) NOT NULL,
+        creation_date DATETIME NOT NULL,
+        page_type VARCHAR(255) CHECK (page_type IN ('community', 'business', 'fan')) NOT NULL,
+        profile_image_url VARCHAR(255) DEFAULT 'default_profile.jpg',
+        cover_image_url VARCHAR(255) DEFAULT 'default_cover.jpg',
+        CONSTRAINT PK_pages PRIMARY KEY (page_id),
+        FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+END
+
+-- Page Members Table: Manage page membership and roles
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'page_members')
+BEGIN
+    CREATE TABLE page_members (
+        member_id INT IDENTITY(1,1) NOT NULL,
+        page_id INT NOT NULL,
+        user_id INT NOT NULL,
+        role VARCHAR(255) CHECK (role IN ('admin', 'editor', 'member')) NOT NULL, -- Defines the user's role on the page
+        CONSTRAINT PK_page_members PRIMARY KEY (member_id),
+        FOREIGN KEY (page_id) REFERENCES pages(page_id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+END
+
+-- Page Posts Table: For posts made on the page
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'page_posts')
+BEGIN
+    CREATE TABLE page_posts (
+        post_id INT IDENTITY(1,1) NOT NULL,
+        page_id INT NOT NULL,
+        creator_id INT NOT NULL, -- The user who created the post
+        content TEXT NOT NULL,
+        post_date DATETIME NOT NULL,
+        likes_count INT DEFAULT 0,
+        comments_count INT DEFAULT 0,
+        shares_count INT DEFAULT 0,
+        CONSTRAINT PK_page_posts PRIMARY KEY (post_id),
+        FOREIGN KEY (page_id) REFERENCES pages(page_id) ON DELETE CASCADE,
+        FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+END
+
+
+
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'live_streams')
+BEGIN
+    CREATE TABLE live_streams (
+        stream_id INT IDENTITY(1,1) NOT NULL,
+        user_id INT NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        start_time DATETIME NOT NULL,
+        end_time DATETIME,
+        status VARCHAR(255) CHECK (status IN ('active', 'inactive', 'scheduled')) NOT NULL,
+        fill_in_video_url VARCHAR(255),
+        CONSTRAINT PK_live_streams PRIMARY KEY (stream_id),
+        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    );
+END
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'stream_comments')
+BEGIN
+    CREATE TABLE stream_comments (
+        comment_id INT IDENTITY(1,1) NOT NULL,
+        stream_id INT NOT NULL,
+        user_id INT NOT NULL,
+        comment TEXT NOT NULL,
+        comment_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT PK_stream_comments PRIMARY KEY (comment_id),
+        FOREIGN KEY (stream_id) REFERENCES live_streams(stream_id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    );
+END
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'stream_schedule')
+BEGIN
+    CREATE TABLE stream_schedule (
+        schedule_id INT IDENTITY(1,1) NOT NULL,
+        stream_id INT NOT NULL,
+        scheduled_start DATETIME NOT NULL,
+        scheduled_end DATETIME NOT NULL,
+        CONSTRAINT PK_stream_schedule PRIMARY KEY (schedule_id),
+        FOREIGN KEY (stream_id) REFERENCES live_streams(stream_id) ON DELETE CASCADE
+    );
+END
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'merchandise')
+BEGIN
+    CREATE TABLE merchandise (
+        merchandise_id INT IDENTITY(1,1) NOT NULL,
+        stream_id INT NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        price DECIMAL(10, 2) NOT NULL,
+        stock_quantity INT NOT NULL,
+        image_url VARCHAR(255),
+        CONSTRAINT PK_merchandise PRIMARY KEY (merchandise_id),
+        FOREIGN KEY (stream_id) REFERENCES live_streams(stream_id) ON DELETE CASCADE
+    );
+END
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'custom_themes')
+BEGIN
+    CREATE TABLE custom_themes (
+        theme_id INT IDENTITY(1,1) NOT NULL,
+        user_id INT NOT NULL,
+        theme_name VARCHAR(255) NOT NULL,
+        theme_data TEXT NOT NULL, -- Store theme data as JSON or similar format
+        CONSTRAINT PK_custom_themes PRIMARY KEY (theme_id),
+        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    );
+END
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'social_media_links')
+BEGIN
+    CREATE TABLE social_media_links (
+        link_id INT IDENTITY(1,1) NOT NULL,
+        user_id INT NOT NULL,
+        platform VARCHAR(50) CHECK (platform IN ('Facebook', 'Twitch', 'Twitter')) NOT NULL,
+        profile_link VARCHAR(255) NOT NULL,
+        CONSTRAINT PK_social_media_links PRIMARY KEY (link_id),
+        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    );
+END
+
+
+
+
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'messages')
+BEGIN
+    CREATE TABLE messages (
+        id INT IDENTITY(1,1) NOT NULL,
+        toid INT NOT NULL,
+        author INT NOT NULL,
+        msg TEXT NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT PK_messages PRIMARY KEY (id)
+    );
+END
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'sessions')
+BEGIN
+    CREATE TABLE sessions (
+        id INT IDENTITY(1,1) NOT NULL,
+        session_id VARCHAR(16) NOT NULL,
+        user_id INT NOT NULL,
+        username VARCHAR(50) NOT NULL,
+        last_logon DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        last_activity DATETIME,
+        active BIT NOT NULL DEFAULT 1,
+        CONSTRAINT PK_sessions PRIMARY KEY (id)
+    );
+END
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'media_items')
+BEGIN
+    CREATE TABLE media_items (
+        media_id INT IDENTITY(1,1) NOT NULL,
+        type VARCHAR(50) CHECK (type IN ('audio', 'photo', 'video')) NOT NULL,
+        url VARCHAR(255) NOT NULL,
+        metadata TEXT, -- JSON format recommended for flexibility
+        uploaded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT PK_media_items PRIMARY KEY (media_id)
+    );
+END
+
+
+
+
+ALTER TABLE messages
+ADD media_id INT;
+
+ALTER TABLE messages
+ADD CONSTRAINT FK_messages_media_items FOREIGN KEY (media_id) REFERENCES media_items(media_id) ON DELETE SET NULL;
+
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'users')
+BEGIN
+    CREATE TABLE users (
+        id INT IDENTITY(1,1) NOT NULL,
+        username VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        date DATETIME NOT NULL,
+        bio VARCHAR(500) NOT NULL DEFAULT '',
+        interests VARCHAR(500) NOT NULL DEFAULT ' ',
+        css VARBINARY(MAX) NOT NULL,
+        music VARCHAR(255) NOT NULL DEFAULT 'default.mp3',
+        pfp VARCHAR(255) NOT NULL DEFAULT 'default.jpg',
+        cover_photo VARCHAR(255) NOT NULL DEFAULT 'default_cover.jpg',
+        currentgroup VARCHAR(255) NOT NULL DEFAULT 'None',
+        status VARCHAR(255) NOT NULL DEFAULT '',
+        private BIT NOT NULL DEFAULT 0,
+        views INT NOT NULL DEFAULT 0,
+        city VARCHAR(255) NOT NULL,
+        state_or_region VARCHAR(255) NOT NULL,
+        country VARCHAR(255) NOT NULL,
+        date_of_birth DATE NOT NULL,
+        gender VARCHAR(50) NOT NULL,
+        race VARCHAR(50) NOT NULL,
+        CONSTRAINT PK_users PRIMARY KEY (id)
+    );
+END
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'user_videos')
+BEGIN
+    CREATE TABLE user_videos (
+        video_id INT IDENTITY(1,1) NOT NULL,
+        user_id INT NOT NULL,
+        video_url VARCHAR(255) NOT NULL,
+        upload_date DATETIME NOT NULL,
+        CONSTRAINT PK_user_videos PRIMARY KEY (video_id),
+        CONSTRAINT FK_user_videos_users FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+END
+
+
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'video_content_creators')
+BEGIN
+    CREATE TABLE video_content_creators (
+        creator_id INT IDENTITY(1,1) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        password VARCHAR(255) NOT NULL, -- It's advised to store hashed passwords
+        registration_date DATETIME NOT NULL,
+        bio VARCHAR(500) NOT NULL DEFAULT '',
+        influence VARCHAR(500) NOT NULL DEFAULT ' ',
+        css VARBINARY(MAX) NOT NULL,
+        admin_id INT NOT NULL, -- Assuming admin is also a user, references `users` table
+        genre VARCHAR(255) NOT NULL,
+        desired_age_group VARCHAR(255) NOT NULL,
+        profile_image VARCHAR(255) NOT NULL DEFAULT 'default_profile.jpg',
+        cover_image VARCHAR(255) NOT NULL DEFAULT 'default_cover.jpg',
+        CONSTRAINT PK_video_content_creators PRIMARY KEY (creator_id),
+        CONSTRAINT FK_video_content_creators_users FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+END
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'video_content_creators')
+BEGIN
+    CREATE TABLE video_content_creators (
+        creator_id INT IDENTITY(1,1) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        password VARCHAR(255) NOT NULL, -- It's advised to store hashed passwords
+        registration_date DATETIME NOT NULL,
+        bio VARCHAR(500) NOT NULL DEFAULT '',
+        influence VARCHAR(500) NOT NULL DEFAULT ' ',
+        css VARBINARY(MAX) NOT NULL,
+        admin_id INT NOT NULL, -- Assuming admin is also a user, references `users` table
+        genre VARCHAR(255) NOT NULL,
+        desired_age_group VARCHAR(255) NOT NULL,
+        profile_image VARCHAR(255) NOT NULL DEFAULT 'default_profile.jpg',
+        cover_image VARCHAR(255) NOT NULL DEFAULT 'default_cover.jpg',
+        CONSTRAINT PK_video_content_creators PRIMARY KEY (creator_id),
+        CONSTRAINT FK_video_content_creators_users FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+END
+
+
+
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'video_content_creators')
+BEGIN
+    CREATE TABLE video_content_creators (
+        creator_id INT IDENTITY(1,1) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        password VARCHAR(255) NOT NULL, -- It's advised to store hashed passwords
+        registration_date DATETIME NOT NULL,
+        bio VARCHAR(500) NOT NULL DEFAULT '',
+        influence VARCHAR(500) NOT NULL DEFAULT ' ',
+        css VARBINARY(MAX) NOT NULL,
+        admin_id INT NOT NULL, -- Assuming admin is also a user, references `users` table
+        genre VARCHAR(255) NOT NULL,
+        desired_age_group VARCHAR(255) NOT NULL,
+        profile_image VARCHAR(255) NOT NULL DEFAULT 'default_profile.jpg',
+        cover_image VARCHAR(255) NOT NULL DEFAULT 'default_cover.jpg',
+        CONSTRAINT PK_video_content_creators PRIMARY KEY (creator_id),
+        CONSTRAINT FK_video_content_creators_users FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+END
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'creator_videos')
+BEGIN
+    CREATE TABLE creator_videos (
+        video_id INT IDENTITY(1,1) NOT NULL,
+        creator_id INT NOT NULL,
+        video_url VARCHAR(255) NOT NULL,
+        CONSTRAINT PK_creator_videos PRIMARY KEY (video_id),
+        CONSTRAINT FK_creator_videos_music_content_creators FOREIGN KEY (creator_id) REFERENCES music_content_creators(id) ON DELETE CASCADE
+    );
+END
+
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'creator_mp3s')
+BEGIN
+    CREATE TABLE creator_mp3s (
+        mp3_id INT IDENTITY(1,1) NOT NULL,
+        creator_id INT NOT NULL,
+        mp3_url VARCHAR(255) NOT NULL,
+        CONSTRAINT PK_creator_mp3s PRIMARY KEY (mp3_id),
+        CONSTRAINT FK_creator_mp3s_music_content_creators FOREIGN KEY (creator_id) REFERENCES music_content_creators(id) ON DELETE CASCADE
+    );
+END
+
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'music_user_permissions')
+BEGIN
+    CREATE TABLE music_user_permissions (
+        permission_id INT IDENTITY(1,1) NOT NULL,
+        creator_id INT NOT NULL,
+        user_id INT NOT NULL,
+        can_upload_video BIT NOT NULL DEFAULT 0,
+        can_delete_video BIT NOT NULL DEFAULT 0,
+        can_upload_mp3 BIT NOT NULL DEFAULT 0,
+        can_delete_mp3 BIT NOT NULL DEFAULT 0,
+        CONSTRAINT PK_music_user_permissions PRIMARY KEY (permission_id),
+        CONSTRAINT FK_music_user_permissions_music_content_creators FOREIGN KEY (creator_id) REFERENCES music_content_creators(id) ON DELETE CASCADE,
+        CONSTRAINT FK_music_user_permissions_users FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+END
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'products')
+BEGIN
+    CREATE TABLE products (
+        product_id INT IDENTITY(1,1) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        description TEXT NOT NULL,
+        price DECIMAL(10, 2) NOT NULL,
+        stock_quantity INT NOT NULL,
+        creation_date DATETIME NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT PK_products PRIMARY KEY (product_id)
+    );
+END
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'product_comments')
+BEGIN
+    CREATE TABLE product_comments (
+        comment_id INT IDENTITY(1,1) NOT NULL,
+        product_id INT NOT NULL,
+        author_id INT NOT NULL,
+        comment TEXT NOT NULL,
+        rating INT,
+        comment_date DATETIME NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT PK_product_comments PRIMARY KEY (comment_id),
+        CONSTRAINT FK_product_comments_products FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE,
+        CONSTRAINT FK_product_comments_users FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+END
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'plugins')
+BEGIN
+    CREATE TABLE plugins (
+        plugin_id INT IDENTITY(1,1) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        description TEXT NOT NULL,
+        active BIT NOT NULL DEFAULT 0, -- 0 = Inactive, 1 = Active
+        installation_date DATETIME NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT PK_plugins PRIMARY KEY (plugin_id)
+    );
+END
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'plugin_options')
+BEGIN
+    CREATE TABLE plugin_options (
+        option_id INT IDENTITY(1,1) NOT NULL,
+        plugin_id INT NOT NULL,
+        option_name VARCHAR(255) NOT NULL,
+        option_value TEXT NOT NULL,
+        CONSTRAINT PK_plugin_options PRIMARY KEY (option_id),
+        CONSTRAINT FK_plugin_options_plugins FOREIGN KEY (plugin_id) REFERENCES plugins(plugin_id) ON DELETE CASCADE
+    );
+END
+
+
+
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'games')
+BEGIN
+    CREATE TABLE games (
+        game_id INT IDENTITY(1,1) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        creation_date DATETIME NOT NULL,
+        status VARCHAR(10) CHECK (status IN ('pending', 'approved', 'denied')) NOT NULL DEFAULT 'pending',
+        developer_id INT NOT NULL,
+        publish_date DATETIME,
+        CONSTRAINT PK_games PRIMARY KEY (game_id),
+        CONSTRAINT FK_games_users FOREIGN KEY (developer_id) REFERENCES users(user_id) ON DELETE CASCADE
+    );
+END
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'developer_teams')
+BEGIN
+    CREATE TABLE developer_teams (
+        team_id INT IDENTITY(1,1) NOT NULL,
+        game_id INT NOT NULL,
+        user_id INT NOT NULL, -- The developer's user ID
+        role VARCHAR(255) NOT NULL,
+        CONSTRAINT PK_developer_teams PRIMARY KEY (team_id),
+        CONSTRAINT FK_developer_teams_games FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE,
+        CONSTRAINT FK_developer_teams_users FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    );
+END
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'game_comments')
+BEGIN
+    CREATE TABLE game_comments (
+        comment_id INT IDENTITY(1,1) NOT NULL,
+        game_id INT NOT NULL,
+        user_id INT NOT NULL,
+        comment TEXT NOT NULL,
+        comment_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT PK_game_comments PRIMARY KEY (comment_id),
+        CONSTRAINT FK_game_comments_games FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE,
+        CONSTRAINT FK_game_comments_users FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    );
+END
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'game_ratings')
+BEGIN
+  CREATE TABLE game_ratings (
+    rating_id INT IDENTITY(1,1) NOT NULL,
+    game_id INT NOT NULL,
+    user_id INT NOT NULL,
+    rating INT NOT NULL, -- Assuming a scale of 1-5
+    CONSTRAINT PK_game_ratings PRIMARY KEY (rating_id),
+    CONSTRAINT FK_game_ratings_games FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE,
+    CONSTRAINT FK_game_ratings_users FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+  );
+END
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'user_profiles')
+BEGIN
+    CREATE TABLE user_profiles (
+        profile_id INT IDENTITY(1,1) NOT NULL,
+        user_id INT NOT NULL,
+        about_me TEXT,
+        interests TEXT,
+        favorite_music VARCHAR(500),
+        favorite_movies VARCHAR(500),
+        favorite_games VARCHAR(500),
+        favorite_books VARCHAR(500),
+        favorite_youtubers VARCHAR(500),
+        favorite_tiktokers VARCHAR(500),
+        CONSTRAINT PK_user_profiles PRIMARY KEY (profile_id),
+        CONSTRAINT FK_user_profiles_users FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    );
+END
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'user_media_links')
+BEGIN
+  CREATE TABLE user_media_links (
+    media_link_id INT IDENTITY(1,1) NOT NULL,
+    user_id INT NOT NULL,
+    media_type VARCHAR(50) NOT NULL CHECK (media_type IN ('profile_song', 'profile_video')),
+    media_url VARCHAR(255) NOT NULL,
+    display_order INT NOT NULL DEFAULT 0, -- Use for ordering, e.g., the first song or top 5 videos
+    CONSTRAINT PK_user_media_links PRIMARY KEY (media_link_id),
+    CONSTRAINT FK_user_media_links_users FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+  );
+END
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'karaoke_creators')
+BEGIN
+  CREATE TABLE karaoke_creators (
+    creator_id INT IDENTITY(1,1) NOT NULL,
+    username VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NOT NULL, -- Consider storing hashed passwords only
+    profile_photo_url VARCHAR(255),
+    cover_photo_url VARCHAR(255),
+    bio TEXT,
+    created_at DATETIME NOT NULL DEFAULT GETDATE(),
+    CONSTRAINT PK_karaoke_creators PRIMARY KEY (creator_id),
+    CONSTRAINT UQ_karaoke_creators_email UNIQUE (email)
+  );
+END
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'karaoke_lyrics')
+BEGIN
+  CREATE TABLE karaoke_lyrics (
+    lyric_id INT IDENTITY(1,1) NOT NULL,
+    track_id INT NOT NULL,
+    lyrics TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT GETDATE(),
+    CONSTRAINT PK_karaoke_lyrics PRIMARY KEY (lyric_id),
+    CONSTRAINT FK_karaoke_lyrics_tracks FOREIGN KEY (track_id) REFERENCES karaoke_tracks(track_id) ON DELETE CASCADE
+  );
+END
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'karaoke_tracks')
+BEGIN
+  CREATE TABLE karaoke_tracks (
+    track_id INT IDENTITY(1,1) NOT NULL,
+    creator_id INT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    artist VARCHAR(255) NOT NULL,
+    file_url VARCHAR(255) NOT NULL, -- URL to the karaoke track file
+    cover_image_url VARCHAR(255),
+    description TEXT,
+    uploaded_at DATETIME NOT NULL DEFAULT GETDATE(),
+    CONSTRAINT PK_karaoke_tracks PRIMARY KEY (track_id),
+    CONSTRAINT FK_karaoke_tracks_creators FOREIGN KEY (creator_id) REFERENCES karaoke_creators(creator_id) ON DELETE CASCADE
+  );
+END
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'karaoke_comments')
+BEGIN
+  CREATE TABLE karaoke_comments (
+    comment_id INT IDENTITY(1,1) NOT NULL,
+    track_id INT NOT NULL,
+    user_id INT NOT NULL,
+    comment TEXT NOT NULL,
+    commented_at DATETIME NOT NULL DEFAULT GETDATE(),
+    CONSTRAINT PK_karaoke_comments PRIMARY KEY (comment_id),
+    CONSTRAINT FK_karaoke_comments_tracks FOREIGN KEY (track_id) REFERENCES karaoke_tracks(track_id) ON DELETE CASCADE,
+    CONSTRAINT FK_karaoke_comments_users FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+  );
+END
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'karaoke_ratings')
+BEGIN
+    CREATE TABLE karaoke_ratings (
+        rating_id INT IDENTITY(1,1) NOT NULL,
+        track_id INT NOT NULL,
+        user_id INT NOT NULL,
+        rating DECIMAL(2,1) NOT NULL, -- Ratings could be from 1.0 to 5.0, for example
+        rated_at DATETIME NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT PK_karaoke_ratings PRIMARY KEY (rating_id),
+        CONSTRAINT FK_karaoke_ratings_tracks FOREIGN KEY (track_id) REFERENCES karaoke_tracks(track_id) ON DELETE CASCADE,
+        CONSTRAINT FK_karaoke_ratings_users FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    );
+END
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ai_interactions')
+BEGIN
+    CREATE TABLE ai_interactions (
+        interaction_id INT IDENTITY(1,1) NOT NULL,
+        user_id INT NOT NULL,
+        interaction_type VARCHAR(50) NOT NULL, -- You'll need to enforce the ENUM values in your application code
+        details TEXT, -- JSON or similar to store interaction details
+        created_at DATETIME NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT PK_ai_interactions PRIMARY KEY (interaction_id),
+        CONSTRAINT FK_ai_interactions_users FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    );
+END
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'multimedia_content')
+BEGIN
+  CREATE TABLE multimedia_content (
+    content_id INT IDENTITY(1,1) NOT NULL,
+    user_id INT, -- NULL if content is from Navi, not user-specific
+    content_type VARCHAR(50) NOT NULL, -- You'll need to enforce the ENUM values in your application code
+    content_url VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at DATETIME NOT NULL DEFAULT GETDATE(),
+    CONSTRAINT PK_multimedia_content PRIMARY KEY (content_id),
+    CONSTRAINT FK_multimedia_content_users FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+  );
+END
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'user_connections')
+BEGIN
+  CREATE TABLE user_connections (
+    connection_id INT IDENTITY(1,1) NOT NULL,
+    user_id_1 INT NOT NULL,
+    user_id_2 INT NOT NULL,
+    status VARCHAR(50) NOT NULL, -- You'll need to enforce the ENUM values in your application code
+    initiated_by_ai BIT NOT NULL DEFAULT 1, -- Indicates if Navi initiated the connection suggestion
+    created_at DATETIME NOT NULL DEFAULT GETDATE(),
+    CONSTRAINT PK_user_connections PRIMARY KEY (connection_id),
+    CONSTRAINT unique_pair UNIQUE (user_id_1, user_id_2),
+    CONSTRAINT FK_user_connections_users_1 FOREIGN KEY (user_id_1) REFERENCES users(user_id) ON DELETE CASCADE,
+    CONSTRAINT FK_user_connections_users_2 FOREIGN KEY (user_id_2) REFERENCES users(user_id) ON DELETE CASCADE
+  );
+END
+
+
+
+
+
+
+
+
+
+
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*Consistency in Naming Conventions: Ensure consistency across table and column naming conventions. For example, you use both id and specific names like tag_id, share_id. Stick to one style for clarity and consistency.
+Auto Increment Correction: You've correctly set NOT NULL AUTO_INCREMENT for primary keys. Just ensure every primary key that's supposed to auto-increment is correctly defined, as seen in your tables.
+Timestamp Defaults: You've made good use of CURRENT_TIMESTAMP for creating default values for date columns. This is a best practice for tracking when records are created and updated.
+Foreign Key Relationships: You've established several foreign key relationships which enforce data integrity. Ensure that each foreign key reference matches the referred primary key in terms of type and characteristics.
+ENUM Use: You've used ENUM types for several columns (status, content_type, platform, etc.). While ENUMs are useful for restricting values to a fixed set, they can be inflexible if new categories need to be added. Consider using a separate lookup table for these types if you anticipate changes or expansions.
+Data Type Choices: Review your choice of data types, particularly for fields like bio, description, which might benefit from TEXT if you expect them to exceed the 255-character limit of VARCHAR.
+Security for Password Storage: Ensure you're using a secure method for storing passwords (password columns). It's recommended to store hashed passwords rather than plain text.
+User Profile Flexibility: Your user_profiles table and related structures should be designed to easily accommodate future additional fields or preferences that might be discovered as necessary through user feedback.
+AI Interactions: The ai_interactions table is a great start for logging AI activities. Depending on your application's complexity and the depth of AI interaction, consider expanding this with more detailed logs or related tables that can better describe the interactions' context.
+Indexing: Besides primary keys, consider adding indexes to columns frequently used in search conditions (WHERE, JOIN clauses) to improve query performance.
+Schema Evolution Strategy: Have a strategy in place for schema migrations that can handle updates without significant downtime. This is crucial for platforms expected to evolve over time.
+Error Handling and Logging: Not directly related to the SQL schema, but ensure your application has robust error handling and logging mechanisms, especially around database operations. This will help quickly identify and troubleshoot issues as they arise.
+Version Control for Your Schema
+Consider maintaining your database schema in version control, allowing you to track changes over time and facilitate migrations. Tools like Flyway or Liquibase can assist in managing and applying database migrations systematically.
+
+Testing
+Before going live, thoroughly test your database schema with realistic data loads and query patterns to identify any performance bottlenecks or design issues.
+
+This schema sets a solid foundation for your platform's functionality. As your platform grows, continuous monitoring and optimization of your database will be key to maintaining performance and ensuring scalability.
+
+
+
+
+ */;
